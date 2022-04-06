@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="150.0px" height="150.0px" viewBox="0 0 150.0 222.0" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>ZeniqLogo</title>
+    <g id="ZeniqLogo" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="zeniq_noletters">
+            <path d="M 39.96,34.04 L 74.0,0 L 108.50,34.04 Z" id="Path" fill="#CFB06C"></path>
+            <path d="M 0,74.0 L 23.68,50.32 L 59.25,50.32 L 35.56701030927835,74.0 L 74.0,113.43298969072166 L 113.43298969072166,74.0 L 89.43,50.32 L 125.00,50.32 L 149.0,74.0 L 74.0,149.0 Z" id="Path" fill="#4F4F4F"></path>
+            <path d="M 0,74.0 L 35.56701030927835,74.0 L 74.0,113.43298969072166 L 74.0,149.0 Z" id="Path" fill="#5F5F5F"></path>
+        </g>
+        <text font-size="50" font-weight="bold" font-family="Pirulen Rg" fill="#4F4F4F">
+              <tspan x="-33" y="197.0">ZENIQ</tspan>
+        </text>
+    </g>
+</svg>
+
+<!--
+
+%f=150/194
+%W,H=f*194,f*194
+%s,e=0,W-1
+%w=f*46
+%m=(s+e)//2
+%a,b,c,d=zip([s,m,e,m],[m,s,m,e])
+%A,B,C,D=zip([s+w,m,e-w,m],[m,s+w,m,e-w])
+%S=lambda p: str(p)[1:-1].replace(' ','')
+%from turtle import Vec2D as V
+%X=lambda f,a,b:V(*a)+f*(V(*b)-V(*a))
+%f1,f2=0.32,0.54
+%ab1,ab2,bc2,bc1,=X(f1,a,b),X(f2,a,b),X(f1,c,b),X(f2,c,b)
+%AB1,AB2,BC2,BC1,=X(f1,A,B),X(f2,A,B),X(f1,C,B),X(f2,C,B)
+%AB1=V(ab1[0]+w,ab1[1])
+%BC2=V(bc2[0]-w,bc2[1])
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="{{W}}px" height="{{H}}px" viewBox="0 0 {{W}} {{H+72}}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>ZeniqLogo</title>
+    <g id="ZeniqLogo" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="zeniq_noletters">
+            <path d="M {{S(ab2)}} L {{S(b)}} L {{S(bc1)}} Z" id="Path" fill="#CFB06C"></path>
+            <path d="M {{S(a)}} L {{S(ab1)}} L {{S(AB1)}} L {{S(A)}} L {{S(D)}} L {{S(C)}} L {{S(BC2)}} L {{S(bc2)}} L {{S(c)}} L {{S(d)}} Z" id="Path" fill="#4F4F4F"></path>
+            <path d="M {{S(a)}} L {{S(A)}} L {{S(D)}} L {{S(d)}} Z" id="Path" fill="#5F5F5F"></path>
+        </g>
+        <text font-size="50" font-weight="bold" font-family="Pirulen Rg" fill="#4F4F4F">
+              <tspan x="-33" y="197.0">ZENIQ</tspan>
+        </text>
+    </g>
+</svg>
+%# stpl template
+
+
+-->

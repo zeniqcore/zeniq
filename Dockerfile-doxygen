@@ -1,0 +1,14 @@
+FROM ubuntu:16.04
+
+RUN apt-get update && apt-get install -y doxygen graphviz
+
+COPY doc /zeniq/doc
+COPY src /zeniq/src
+
+WORKDIR /zeniq
+
+RUN doxygen doc/Doxyfile
+
+FROM nginx:alpine
+
+COPY --from=0 /zeniq/doc/doxygen/html /usr/share/nginx/html

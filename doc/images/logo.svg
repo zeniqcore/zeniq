@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="194px" height="194px" viewBox="0 0 194 194" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>ZeniqLogo</title>
+    <g id="ZeniqLogo" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="zeniq_noletters">
+            <path d="M 51.84,44.16 L 96,0 L 140.62,44.16 Z" id="Path" fill="#CFB06C"></path>
+            <path d="M 0,96 L 30.72,65.28 L 76.72,65.28 L 46,96 L 96,147 L 147,96 L 115.96,65.28 L 161.96,65.28 L 193,96 L 96,193 Z" id="Path" fill="#4F4F4F"></path>
+            <path d="M 0,96 L 46,96 L 96,147 L 96,193 Z" id="Path" fill="#5F5F5F"></path>
+        </g>
+    </g>
+</svg>
+
+<!--
+
+%f=1
+%W,H=f*194,f*194
+%s,e=0,W-1
+%w=f*46
+%m=(s+e)//2
+%a,b,c,d=zip([s,m,e,m],[m,s,m,e])
+%A,B,C,D=zip([s+w,m,e-w,m],[m,s+w,m,e-w])
+%S=lambda p: str(p)[1:-1].replace(' ','')
+%from turtle import Vec2D as V
+%X=lambda f,a,b:V(*a)+f*(V(*b)-V(*a))
+%f1,f2=0.32,0.54
+%ab1,ab2,bc2,bc1,=X(f1,a,b),X(f2,a,b),X(f1,c,b),X(f2,c,b)
+%AB1,AB2,BC2,BC1,=X(f1,A,B),X(f2,A,B),X(f1,C,B),X(f2,C,B)
+%AB1=V(ab1[0]+w,ab1[1])
+%BC2=V(bc2[0]-w,bc2[1])
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="{{W}}px" height="{{H}}px" viewBox="0 0 {{W}} {{H}}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>ZeniqLogo</title>
+    <g id="ZeniqLogo" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="zeniq_noletters">
+            <path d="M {{S(ab2)}} L {{S(b)}} L {{S(bc1)}} Z" id="Path" fill="#CFB06C"></path>
+            <path d="M {{S(a)}} L {{S(ab1)}} L {{S(AB1)}} L {{S(A)}} L {{S(D)}} L {{S(C)}} L {{S(BC2)}} L {{S(bc2)}} L {{S(c)}} L {{S(d)}} Z" id="Path" fill="#4F4F4F"></path>
+            <path d="M {{S(a)}} L {{S(A)}} L {{S(D)}} L {{S(d)}} Z" id="Path" fill="#5F5F5F"></path>
+        </g>
+    </g>
+</svg>
+%# stpl template
+
+
+-->
