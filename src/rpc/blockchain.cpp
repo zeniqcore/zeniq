@@ -6,6 +6,7 @@
 
 #include <rpc/blockchain.h>
 
+#include <logging.h>
 #include <amount.h>
 #include <chain.h>
 #include <chainparams.h>
@@ -420,6 +421,11 @@ static UniValue getdifficulty(const Config& config,
 
 static std::string EntryDescriptionString() {
     return "    \"size\" : n,             (numeric) transaction size.\n"
+           "    \"fee\" : n,              (numeric) transaction fee in " +
+           CURRENCY_UNIT + "(DEPRECATED)" +
+           "\n"
+           "    \"modifiedfee\" : n,      (numeric) transaction fee with fee "
+           "deltas used for mining priority (DEPRECATED)\n"
            "    \"time\" : n,             (numeric) local time transaction "
            "entered pool in seconds since 1 Jan 1970 GMT\n"
            "    \"fees\" : {\n"
@@ -446,7 +452,7 @@ static UniValue::Object entryToJSON(const CTxMemPool &pool, const CTxMemPoolEntr
     AssertLockHeld(pool.cs);
 
     UniValue::Object info;
-    info.reserve(5);
+    info.reserve(7);
 
     UniValue::Object fees;
     fees.reserve(2);
@@ -455,6 +461,8 @@ static UniValue::Object entryToJSON(const CTxMemPool &pool, const CTxMemPoolEntr
 
     info.emplace_back("fees", std::move(fees));
     info.emplace_back("size", e.GetTxSize());
+    info.emplace_back("fee", ValueFromAmount(e.GetFee()));
+    info.emplace_back("modifiedfee", ValueFromAmount(e.GetModifiedFee()));
     info.emplace_back("time", e.GetTime());
 
     const CTransaction &tx = e.GetTx();
@@ -490,6 +498,9 @@ UniValue MempoolToJSON(const CTxMemPool &pool, bool verbose) {
         LOCK(pool.cs);
         ret.reserve(pool.mapTx.size());
         for (const CTxMemPoolEntry &e : pool.mapTx) {
+            if (e.GetTx().IsDMA()) {
+                continue;
+            }
             const uint256 &txid = e.GetTx().GetId();
             ret.emplace_back(txid.ToString(), entryToJSON(pool, e));
         }
@@ -2536,6 +2547,112 @@ static UniValue scantxoutset(const Config &config,
     throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid command");
 }
 
+static UniValue crosschain(const Config &config,
+                       const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() < 2 ||
+        request.params.size() > 3) {
+        throw std::runtime_error(
+            RPCHelpMan{"crosschain",
+                "\nScan blocks first last inclusive for crosschain type transactions (max 2500 blocks).\n",
+                {
+                    {"first"      , RPCArg::Type::NUM     , /* opt */ false , /* default_val */ "" , "Start searching for crosschain tx with block at this height."},
+                    {"last"        , RPCArg::Type::NUM    , /* opt */ false , /* default_val */ "" , "Stop searching for crosschain tx with block at this height."},
+                    {"bytes"     , RPCArg::Type::STR_HEX  , /* opt */ true  , /* default_val */ "" , "Filter with data in the script after the initial magic identifier."}, 
+                }}.ToString() +
+            "\nResult:\n"
+            "{\n"
+            "  \"epochEndBlockTime\":     (int) Block timestamp \n"
+            "  \"cc\": [\n"
+            "     {\n"
+            "       \"height\": xxxx,         (numeric) height of the chain tip\n"
+            "       \"txid\": \"xxxx\",         (string) the crosschain transaction\n"
+            "       \"hexpubkey\" : \"xxxx\",    (string) the public key hex encoded\n"
+            "       \"amount\" : x.xxx,             (numeric) the amount \n"
+            "     }\n"
+            "   ]\n"
+            "}\n"
+            "\nExamples:\n" +
+            HelpExampleCli("crosschain", "100 200") +
+            HelpExampleRpc("crosschain", "100 200 \"01020304\""));
+    }
+
+    LOCK(cs_main);
+    int maxHeight = ::ChainActive().Height();
+    int first = request.params[0].isNum()
+        ?request.params[0].get_int()
+        :stoi(request.params[0].get_str());
+    if (first <= 0 || first > maxHeight) {
+        throw JSONRPCError(
+                RPC_INVALID_PARAMETER,
+                "not a valid first block");
+    }
+    int last = request.params[1].isNum()
+        ?request.params[1].get_int()
+        :stoi(request.params[1].get_str());
+    if (last > maxHeight) {
+        last = maxHeight;
+    }
+    if (last <= 0) {
+        throw JSONRPCError(
+                RPC_INVALID_PARAMETER,
+                "not a valid last block");
+    }
+    if (first > last) {
+        throw JSONRPCError(
+                RPC_INVALID_PARAMETER,
+                "first has to be less than last");
+    }
+    if (last - first >= 2500) {
+        throw JSONRPCError(
+                RPC_INVALID_PARAMETER,
+                "can only scan a maximum of 2500 blocks at once");
+    }
+    std::vector<uint8_t> bytes;
+    if (request.params.size() > 2 &&
+        !request.params[2].get_str().empty()) {
+        bytes = ParseHexV(request.params[2], "bytes");
+    }
+
+    int64_t epochEndBlockTime = ReadBlockChecked(config, ::ChainActive()[last]).GetBlockTime();
+    UniValue::Object robj;
+    robj.emplace_back("epochEndBlockTime", epochEndBlockTime);
+    UniValue::Array list;
+    for (int b = first; b <= last; b++) {
+        const CBlockIndex *pblockindex = ::ChainActive()[b];
+        const CBlock block = ReadBlockChecked(config, pblockindex);
+        for (const auto &crosschaintx: block.vtx) {
+            auto sout = crosschaintx->vout[0].scriptPubKey;
+            if (!sout.IsCrossChain()) { continue;}
+#define CROSSCHAINMAGICLEN 1
+            auto len_data = sout.begin()+CROSSCHAINMAGICLEN;
+            if (!bytes.empty() && bytes.size() < *len_data &&
+                !std::equal(bytes.begin(), bytes.begin()+*len_data,
+                    len_data+1)) { continue;}
+            const CScript sin = crosschaintx->vin[0].scriptSig;
+            if (!sin.IsPushOnly()) { continue;}
+            auto iter = sin.begin();
+            opcodetype op1;
+            if (!sin.GetOp(iter, op1)) { continue;}
+            if (op1 > OP_16) { continue;}
+            std::vector<uint8_t> vpubkey;
+            opcodetype op2;
+            if (!sin.GetOp(iter, op2, vpubkey)) { continue;}
+            if (op2 > OP_16) { continue;}
+            if (iter != sin.end()) { continue;}
+            CPubKey pubkey(vpubkey);
+            if (!pubkey.IsFullyValid()) { continue;}
+            UniValue::Object r;
+            r.emplace_back("height", b);
+            r.emplace_back("txid", crosschaintx->GetId().GetHex());
+            r.emplace_back("hexpubkey", HexStr(pubkey));
+            r.emplace_back("amount", ValueFromAmount(crosschaintx->vout[0].nValue));
+            list.emplace_back(r);
+        }
+    }
+    robj.emplace_back("cc", list);
+    return robj;
+}
+
 // clang-format off
 static const ContextFreeRPCCommand commands[] = {
     //  category            name                      actor (function)        argNames
@@ -2568,6 +2685,7 @@ static const ContextFreeRPCCommand commands[] = {
     { "blockchain",         "scantxoutset",           scantxoutset,           {"action", "scanobjects"} },
     { "blockchain",         "unparkblock",            unparkblock,            {"blockhash"} },
     { "blockchain",         "verifychain",            verifychain,            {"checklevel","nblocks"} },
+    { "crosschain",         "crosschain",             crosschain,             {"first","last","type"} },
 
     /* Not shown in help */
     { "hidden",             "syncwithvalidationinterfacequeue", syncwithvalidationinterfacequeue, {} },

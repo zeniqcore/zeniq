@@ -505,6 +505,9 @@ void CTxMemPool::queryHashes(std::vector<uint256> &vtxid) const {
     vtxid.reserve(mapTx.size());
 
     for (const auto &entry : mapTx.get<entry_id>()) {
+        if (entry.GetTx().IsDMA()) {
+            continue;
+        }
         vtxid.push_back(entry.GetTx().GetId());
     }
 }

@@ -294,6 +294,7 @@ public:
 
     bool IsDMA() const;
     bool IsDMA(int height) const;
+    bool IsCrossChain() const;
 
     friend bool operator==(const CTransaction &a, const CTransaction &b) {
         return a.GetHash() == b.GetHash();

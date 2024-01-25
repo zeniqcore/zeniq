@@ -9,7 +9,7 @@ set(CMAKE_USER_MAKE_RULES_OVERRIDE
 )
 
 project(zeniq-node
-	VERSION 24.0.1
+	VERSION 24.0.5
 	DESCRIPTION "Zeniq is a full node implementation of the Bitcoin protocol."
 	HOMEPAGE_URL "https://zeniq.com"
 )

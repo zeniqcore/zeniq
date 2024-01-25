@@ -540,7 +540,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
     // Should throw blk-bad-inputs
     BOOST_CHECK_EXCEPTION(
         AssemblerForTest(chainparams, g_mempool).CreateNewBlock(scriptPubKey),
-        std::runtime_error, HasReason("not-enough-minting"));
+        std::runtime_error, HasReason("not-enough-minters"));
 
     g_mempool_reset();
 

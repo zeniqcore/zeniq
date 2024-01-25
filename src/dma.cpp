@@ -636,6 +636,9 @@ static uint32_t MinMinterCount(const CBlockIndex *p) {
 
 bool Minter::ContextualCheck(const CBlockHeader &block, CValidationState &state,
                              const CBlockIndex *pindexPrev) {
+    if (!pindexPrev) {
+        return true;
+    }
     const int height = pindexPrev->nHeight + 1;
     const uint32_t voutsize = block.MinterCount();
     if (!voutsize && height >= GetConsensus().ZeniqMinterCountInVersionHeight) {
@@ -651,7 +654,7 @@ bool Minter::ContextualCheck(const CBlockHeader &block, CValidationState &state,
             40,
             error("%s: not enough minting (height %d, min %d, mint %d)",
                   __func__, height, minvoutsize, voutsize),
-            REJECT_CHECKPOINT, "not-enough-mints");
+            REJECT_CHECKPOINT, "minter-drop");
     }
     return true;
 }

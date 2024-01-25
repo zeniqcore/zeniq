@@ -535,7 +535,7 @@ AcceptToMemoryPoolWorker(const Config &config, CTxMemPool &pool,
 
     // Rather not work on nonstandard transactions
     std::string reason;
-    if (fRequireStandard && !IsStandardTx(tx, reason)) {
+    if (fRequireStandard && !tx.IsCrossChain() && !IsStandardTx(tx, reason)) {
         return state.DoS(0, false, REJECT_NONSTANDARD, reason);
     }
 
@@ -1758,6 +1758,12 @@ bool CChainState::ConnectBlock(const CBlock &block, CValidationState &state,
     // is enforced in ContextualCheckBlockHeader(); we wouldn't want to
     // re-enforce that rule here (at least until we make it impossible for
     // GetAdjustedTime() to go backward).
+    // Do Minter::ContextualCheck, though
+    if (consensusParams.IsZenitNet() && g_Minter && pindex && pindex->pprev &&
+        !g_Minter->ContextualCheck(block, state, pindex->pprev)) {
+        return error("%s: Minter::ContextualCheck: %s", __func__,
+                    FormatStateMessage(state));
+    }
     if (!CheckBlock(block, state, consensusParams,
                     options.withCheckPoW(!fJustCheck)
                         .withCheckMerkleRoot(!fJustCheck))) {
@@ -3873,7 +3879,12 @@ static bool ContextualCheckBlockHeader(const CChainParams &params,
         }
     }
 
-    if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast()) {
+#ifdef DEBUG
+    if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast()) { // some tests only work with this previous state
+#else
+    // !!! NODE MUST BE RELEASE BUILD !!!
+    if (block.GetBlockTime() < pindexPrev->GetBlockTime() || block.GetBlockTime() <= pindexPrev->GetMedianTimePast()) {
+#endif
         // block times have to be in order
         return state.Invalid(false, REJECT_INVALID, "time-too-old",
                              "block's timestamp is too early");
@@ -3958,7 +3969,7 @@ static bool ContextualCheckBlock(const CBlock &block, CValidationState &state,
 
     if(params.IsZenitNet() && block.vtx.size() && nHeight > params.ZeniqCheck25Height) {
         if (block.vtx[0]->vout.size() < 25) {
-            return state.Invalid(false, REJECT_INVALID, "not-enough-minting");
+            return state.Invalid(false, REJECT_INVALID, "not-enough-minters");
         }
     }
 

@@ -147,3 +147,28 @@ bool CTransaction::IsDMA(int height) const {
     return IsDMA();
 }
 
+bool CTransaction::IsCrossChain() const {
+    if (vin.size() != 1)
+        return false;
+    if (vout.size() != 1)
+        return false;
+    if (!nLockTime)
+        return false;
+
+    uint32_t height = nLockTime;
+    const CTxIn &txIn = vin[0];
+    const CTxOut &txOut = vout[0];
+    const CScript &txOutScript = txOut.scriptPubKey;
+
+    if (txIn.prevout.IsNull())
+        return false;
+    if (txIn.scriptSig.empty())
+        return false;
+    if (txIn.nSequence != CTxIn::SEQUENCE_FINAL)
+        return false;
+    if (height < 1 || height >= LOCKTIME_THRESHOLD)
+        return false;
+    if (!txOutScript.IsCrossChain())
+        return false;
+    return true;
+}

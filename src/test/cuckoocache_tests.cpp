@@ -10,6 +10,7 @@
 #include <test/setup_common.h>
 
 #include <boost/test/unit_test.hpp>
+#include <deque>
 #include <boost/thread/shared_mutex.hpp>
 
 /**

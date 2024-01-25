@@ -4,10 +4,12 @@
 
 #include <coins.h>
 
+#include <util/strencodings.h>
 #include <consensus/consensus.h>
 #include <memusage.h>
 #include <random.h>
 #include <version.h>
+#include <logging.h>
 
 #include <cassert>
 
@@ -104,6 +106,7 @@ void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin coin,
     if (coin.GetTxOut().scriptPubKey.IsUnspendable()) {
         return;
     }
+
     CCoinsMap::iterator it;
     bool inserted;
     std::tie(it, inserted) =

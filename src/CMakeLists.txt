@@ -550,6 +550,7 @@ target_link_libraries(server
 	bitcoinconsensus
 	leveldb
 	memenv
+	boost_filesystem
 )
 
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")

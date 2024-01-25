@@ -3,7 +3,8 @@
 project(wallet)
 
 # Add Berkeley DB dependency.
-find_package(BerkeleyDB 5.3 REQUIRED COMPONENTS CXX)
+find_package(BerkeleyDB 5.3 REQUIRED)
+# If the system uses libdb_cxx higher than 5.3 this is and must be used
 
 # Add event dependency. This is only required for evhttp_uridecode
 # in rpcwallet.cpp so it may be worth considering using an alternative.
@@ -25,4 +26,4 @@ add_library(wallet
 	walletutil.cpp
 )
 
-target_link_libraries(wallet server script univalue Event::event BerkeleyDB::CXX)
+target_link_libraries(wallet server script univalue Event::event ${BerkeleyDB_Cxx_LIBRARY})

@@ -788,6 +788,15 @@ public:
                (size() > MAX_SCRIPT_SIZE);
     }
 
+    bool IsCrossChain() const {
+        return (size() > 4) &&
+            (size() < MAX_SCRIPT_SIZE) &&
+            (*(begin()+0) == OP_FALSE) &&
+            (*(begin()+1) == OP_VERIFY) &&
+            (*(begin()+2) == OP_RETURN) &&
+            (*(begin()+3) < OP_PUSHDATA1); // < OP_PUSHDATA1=0x4c it is length of pushed data
+    }
+
     void clear() {
         // The default prevector::clear() does not release memory
         CScriptBase::clear();

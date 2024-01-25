@@ -33,6 +33,7 @@
 #include <validation.h>
 #include <validationinterface.h>
 #include <warnings.h>
+#include <string>
 
 #include <dma.h>
 
@@ -108,8 +109,7 @@ static double GetNetworkHashPS(int lookup, int height) {
 static UniValue getnetworkhashps(const Config &config,
                                  const JSONRPCRequest &request) {
     if (request.fHelp || request.params.size() > 2) {
-        throw std::runtime_error(RPCHelpMan{
-            "getnetworkhashps",
+        throw std::runtime_error(RPCHelpMan{"getnetworkhashps",
             "\nReturns the estimated network hashes per second based on the last n blocks.\n",
             {
                 {"nblocks", RPCArg::Type::NUM, /* opt */ true, /* default_val */ "120",
@@ -213,8 +213,7 @@ static UniValue generatetoaddress(const Config &config,
                                   const JSONRPCRequest &request) {
     if (request.fHelp || request.params.size() < 2 ||
         request.params.size() > 3) {
-        throw std::runtime_error(RPCHelpMan{
-            "generatetoaddress",
+        throw std::runtime_error(RPCHelpMan{"generatetoaddress",
             "\nMine blocks immediately to a specified address (before the RPC call returns).\n",
             {
                 {"nblocks", RPCArg::Type::NUM, /* opt */ false, /* default_val */ "",
@@ -254,8 +253,7 @@ static UniValue generatetoaddress(const Config &config,
 static UniValue getmininginfo(const Config &config,
                               const JSONRPCRequest &request) {
     if (request.fHelp || request.params.size() != 0) {
-        throw std::runtime_error(RPCHelpMan{
-            "getmininginfo",
+        throw std::runtime_error(RPCHelpMan{"getmininginfo",
             "\nReturns a json object containing mining-related information.\n",
             {},
             RPCResult{
@@ -295,8 +293,7 @@ static UniValue getmininginfo(const Config &config,
 static UniValue prioritisetransaction(const Config &config,
                                       const JSONRPCRequest &request) {
     if (request.fHelp || request.params.size() != 3) {
-        throw std::runtime_error(RPCHelpMan{
-            "prioritisetransaction",
+        throw std::runtime_error(RPCHelpMan{"prioritisetransaction",
             "\nAccepts the transaction into mined blocks at a higher (or lower) priority.\n",
             {
                 {"txid", RPCArg::Type::STR_HEX, /* opt */ false, /* default_val */ "", "The transaction id."},
@@ -791,8 +788,7 @@ static UniValue getblocktemplate(const Config &config, const JSONRPCRequest &req
     if (request.fHelp || request.params.size() > 1) {
         // If you change the help text of getblocktemplate below,
         // consder changing the help text of getblocktemplatelight as well.
-        throw std::runtime_error(RPCHelpMan{
-            "getblocktemplate",
+        throw std::runtime_error(RPCHelpMan{"getblocktemplate",
             "\nIf the request parameters include a 'mode' key, "
             "that is used to explicitly select between the default 'template' request or a 'proposal'.\n"
             "It returns data needed to construct a block to work on.\n"
@@ -861,8 +857,7 @@ static UniValue getblocktemplatelight(const Config &config, const JSONRPCRequest
     if (request.fHelp || request.params.size() > 2) {
         // If you change the help text of getblocktemplatelight below,
         // consder changing the help text of getblocktemplate as well.
-        throw std::runtime_error(RPCHelpMan{
-            "getblocktemplatelight",
+        throw std::runtime_error(RPCHelpMan{"getblocktemplatelight",
             "\nIf the request parameters include a 'mode' key, "
             "that is used to explicitly select between the default 'template' request or a 'proposal'.\n"
             "It returns data needed to construct a block to work on.\n"
@@ -1064,8 +1059,7 @@ static UniValue submitblockcommon(const Config &config, const JSONRPCRequest &re
 static UniValue submitblock(const Config &config, const JSONRPCRequest &request) {
     // We allow 2 arguments for compliance with BIP22. Argument 2 is ignored.
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2) {
-        throw std::runtime_error(RPCHelpMan{
-            "submitblock",
+        throw std::runtime_error(RPCHelpMan{"submitblock",
             "\nAttempts to submit new block to network.\n"
             "See BIP22 for full specification.\n",
             {
@@ -1083,8 +1077,7 @@ static UniValue submitblock(const Config &config, const JSONRPCRequest &request)
 
 static UniValue submitblocklight(const Config &config, const JSONRPCRequest &request) {
     if (request.fHelp || request.params.size() != 2) {
-        throw std::runtime_error(RPCHelpMan{
-            "submitblocklight",
+        throw std::runtime_error(RPCHelpMan{"submitblocklight",
             "\nAttempts to submit a new block to network, based on a previous call to getblocktemplatelight.\n"
             "See the getblocktemplatelight spec in the doc folder for full specification.\n",
             {
@@ -1112,8 +1105,7 @@ static UniValue submitblocklight(const Config &config, const JSONRPCRequest &req
 static UniValue submitheader(const Config &config,
                              const JSONRPCRequest &request) {
     if (request.fHelp || request.params.size() != 1) {
-        throw std::runtime_error(RPCHelpMan{
-            "submitheader",
+        throw std::runtime_error(RPCHelpMan{"submitheader",
             "\nDecode the given hexdata as a header and submit it as a candidate chain tip if valid."
             "\nThrows when the header is invalid.\n",
             {
@@ -1155,8 +1147,7 @@ static UniValue submitheader(const Config &config,
 static UniValue validateblocktemplate(const Config &config,
                                       const JSONRPCRequest &request) {
     if (request.fHelp || request.params.size() != 1) {
-        throw std::runtime_error(RPCHelpMan{
-            "validateblocktemplate",
+        throw std::runtime_error(RPCHelpMan{"validateblocktemplate",
             "\nReturns whether this block template will be accepted if a hash solution is found."
             "\nReturns a JSON error when the header is invalid.\n",
             {
@@ -1201,8 +1192,7 @@ static UniValue validateblocktemplate(const Config &config,
 static UniValue estimatefee(const Config &config,
                             const JSONRPCRequest &request) {
     if (request.fHelp || request.params.size() > 0) {
-        throw std::runtime_error(RPCHelpMan{
-            "estimatefee",
+        throw std::runtime_error(RPCHelpMan{"estimatefee",
             "\nEstimates the approximate fee per kilobyte needed for a transaction\n",
             {},
             RPCResult{
@@ -1557,6 +1547,84 @@ void MineZeniq(bool fGenerate, int nThreads) {
     for (int i = 0; i < nThreads; i++)
         minerThreads->create_thread(std::bind(&ZeniqMiner, i));
 }
+
+static UniValue getgenerate(const Config &config,
+                              const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() != 0) {
+        throw std::runtime_error(RPCHelpMan{"getgenerate",
+            "\nReturn if the server is set to generate coins or not. The default is false.\n"
+            "It is set with the command line argument -gen\n"
+            "It can also be set with the setgenerate call.\n",
+            {},
+            RPCResult{
+            "true|false      (boolean) If the server is set to generate coins or not\n"},
+            RPCExamples{
+            HelpExampleCli("getgenerate", "")
+            + HelpExampleRpc("getgenerate", "")}
+        }.ToStringWithResultsAndExamples());
+    }
+
+    LOCK(cs_main);
+    const bool gen = gArgs.GetBoolArg("-gen", false);
+    return gen;
+}
+
+static UniValue setgenerate(const Config &config,
+                            const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() > 2) {
+        throw std::runtime_error(RPCHelpMan{"setgenerate",
+                "\nSet 'generate' true or false to turn generation on or off.\n"
+                "Generation is limited to 'genproclimit' processors, -1 is unlimited.\n"
+                "See the getgenerate call for the current setting.\n",
+                {
+                    {"generate",RPCArg::Type::BOOL,/*opt*/true,/*default_val*/"true",
+                     "Set to on to turn on generation, off to turn off."},
+                    {"genproclimit",RPCArg::Type::NUM,/*opt*/true,/*default_val*/"-1",
+                     "Set the processor limit for when generation is on. -1 for unlimited."}
+                },
+                RPCResult{"None\n"},
+                RPCExamples{
+                        HelpExampleCli("setgenerate", "true 1") +
+                        HelpExampleCli("setgenerate", "false") +
+                        HelpExampleRpc("setgenerate", "true, 1")}
+        }.ToStringWithResultsAndExamples());
+    }
+
+    if (Params().MineBlocksOnDemand()) {
+        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Use the generate method instead of setgenerate on this network");
+    }
+
+    bool gen = true;
+    if (!request.params[0].isNull()) {
+        try {
+            gen = request.params[0].get_bool();
+        }
+        catch (const std::exception & e){
+            gen = request.params[0].get_str()=="true";
+        }
+    }
+
+    int genproclimit = gArgs.GetArg("-genproclimit", -1);
+    if (!request.params[1].isNull()) {
+        try {
+            genproclimit = request.params[1].get_int();
+        }
+        catch (const std::exception & e){
+            //genproclimit = std::stoi(request.params[1].get_str());
+            genproclimit = std::stoi(request.params[1].get_str());
+        }
+        if (genproclimit == 0) {
+            gen = false;
+        }
+    }
+
+    gArgs.SoftSetBoolArg("-gen", gen);
+    gArgs.SoftSetArg("-genproclimit", itostr(genproclimit));
+    MineZeniq(gen, genproclimit);
+
+    return UniValue();
+}
+
 #endif
 
 // clang-format off
@@ -1572,7 +1640,10 @@ static const ContextFreeRPCCommand commands[] = {
     {"mining",     "submitblocklight",      submitblocklight,      {"hexdata", "job_id"}},
     {"mining",     "submitheader",          submitheader,          {"hexdata"}},
     {"mining",     "validateblocktemplate", validateblocktemplate, {"hexdata"}},
-
+#if ENABLE_WALLET
+    {"generating", "getgenerate",           getgenerate,           {}  },
+    {"generating", "setgenerate",           setgenerate,           {"on_off", "num_cores"}},
+#endif
     {"generating", "generatetoaddress",     generatetoaddress,     {"nblocks", "address", "maxtries"}},
 
     {"util",       "estimatefee",           estimatefee,           {"nblocks"}},
