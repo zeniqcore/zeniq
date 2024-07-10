@@ -788,6 +788,10 @@ public:
                (size() > MAX_SCRIPT_SIZE);
     }
 
+    auto CrossChainDataBegin() {
+        return begin() + 3;
+    }
+
     bool IsCrossChain() const {
         return (size() > 4) &&
             (size() < MAX_SCRIPT_SIZE) &&

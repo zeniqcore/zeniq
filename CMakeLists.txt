@@ -9,7 +9,7 @@ set(CMAKE_USER_MAKE_RULES_OVERRIDE
 )
 
 project(zeniq-node
-	VERSION 24.0.5
+	VERSION 24.0.7
 	DESCRIPTION "Zeniq is a full node implementation of the Bitcoin protocol."
 	HOMEPAGE_URL "https://zeniq.com"
 )
@@ -69,7 +69,7 @@ exclude_from_source_package(
 
 	# Files
 	"[^.]+[.]md$"
-	"Dockerfile-doxygen"
+	"Dockerfile"
 )
 
 option(ENABLE_COVERAGE "Enable coverage" OFF)

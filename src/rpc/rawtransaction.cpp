@@ -488,16 +488,19 @@ CMutableTransaction ConstructTransaction(const CChainParams &params,
             std::vector<uint8_t>::iterator pos = data.begin();
             static const uint8_t CROSSCHAIN[4] = {'\x63', '\x72', '\x73', '\x73'}; //crss
             size_t lower = sizeof(CROSSCHAIN)+8;
-            if (data.size() > lower &&
+            if (data.size() >= lower &&
                     std::equal(CROSSCHAIN, CROSSCHAIN+sizeof(CROSSCHAIN), pos)) {
                 pos += sizeof(CROSSCHAIN);
-                uint64_t nValueCrossChain = 
+                uint64_t nValueCrossChain =
                         (((uint64_t)pos[7] << 56) | ((uint64_t)pos[6] << 48) |
                         ((uint64_t)pos[5] << 40) | ((uint64_t)pos[4] << 32) |
                         ((uint64_t)pos[3] << 24) | ((uint64_t)pos[2] << 16) |
                         ((uint64_t)pos[1] << 8)  | ((uint64_t)pos[0]));
                 pos -= sizeof(CROSSCHAIN);
-                data.erase(pos, pos+sizeof(CROSSCHAIN)+8);
+                data.erase(pos, pos+lower);
+                if (data.size() == 0) {
+                    data.push_back(0);
+                }
                 CTxOut out((int64_t)nValueCrossChain*SATOSHI,
                         CScript() << OP_FALSE << OP_VERIFY << OP_RETURN << data);
                 rawTx.vout.push_back(out);

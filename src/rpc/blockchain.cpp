@@ -2550,14 +2550,15 @@ static UniValue scantxoutset(const Config &config,
 static UniValue crosschain(const Config &config,
                        const JSONRPCRequest &request) {
     if (request.fHelp || request.params.size() < 2 ||
-        request.params.size() > 3) {
+        request.params.size() > 4) {
         throw std::runtime_error(
             RPCHelpMan{"crosschain",
                 "\nScan blocks first last inclusive for crosschain type transactions (max 2500 blocks).\n",
                 {
-                    {"first"      , RPCArg::Type::NUM     , /* opt */ false , /* default_val */ "" , "Start searching for crosschain tx with block at this height."},
-                    {"last"        , RPCArg::Type::NUM    , /* opt */ false , /* default_val */ "" , "Stop searching for crosschain tx with block at this height."},
-                    {"bytes"     , RPCArg::Type::STR_HEX  , /* opt */ true  , /* default_val */ "" , "Filter with data in the script after the initial magic identifier."}, 
+                    {"first"     , RPCArg::Type::NUM,     /* opt */ false , /* default_val */ "" , "Start searching for crosschain tx with block at this height."},
+                    {"last"      , RPCArg::Type::NUM,     /* opt */ false , /* default_val */ "" , "Stop searching for crosschain tx with block at this height."},
+                    {"minimum"   , RPCArg::Type::NUM,     /* opt */ true  , /* default_val */ "" , "Filter by minimum amount in SATOSHI."}, 
+                    {"bytes"     , RPCArg::Type::STR_HEX, /* opt */ true  , /* default_val */ "" , "Filter with data in the script after the initial magic identifier."}, 
                 }}.ToString() +
             "\nResult:\n"
             "{\n"
@@ -2573,7 +2574,8 @@ static UniValue crosschain(const Config &config,
             "}\n"
             "\nExamples:\n" +
             HelpExampleCli("crosschain", "100 200") +
-            HelpExampleRpc("crosschain", "100 200 \"01020304\""));
+            HelpExampleCli("crosschain", "100 200 100000000") +
+            HelpExampleRpc("crosschain", "100 200 100000000 \"01020304\""));
     }
 
     LOCK(cs_main);
@@ -2607,10 +2609,16 @@ static UniValue crosschain(const Config &config,
                 RPC_INVALID_PARAMETER,
                 "can only scan a maximum of 2500 blocks at once");
     }
+    Amount minimum = 0*SATOSHI;
+    if (request.params.size() > 2 && !request.params[2].get_str().empty()) {
+        minimum = request.params[2].isNum()
+        ?(int64_t(request.params[2].get_int())*SATOSHI)
+        :(int64_t(std::stoll(request.params[2].get_str()))*SATOSHI);
+    }
     std::vector<uint8_t> bytes;
-    if (request.params.size() > 2 &&
-        !request.params[2].get_str().empty()) {
-        bytes = ParseHexV(request.params[2], "bytes");
+    if (request.params.size() > 3 &&
+        !request.params[3].get_str().empty()) {
+        bytes = ParseHexV(request.params[3], "bytes");
     }
 
     int64_t epochEndBlockTime = ReadBlockChecked(config, ::ChainActive()[last]).GetBlockTime();
@@ -2623,11 +2631,17 @@ static UniValue crosschain(const Config &config,
         for (const auto &crosschaintx: block.vtx) {
             auto sout = crosschaintx->vout[0].scriptPubKey;
             if (!sout.IsCrossChain()) { continue;}
-#define CROSSCHAINMAGICLEN 1
-            auto len_data = sout.begin()+CROSSCHAINMAGICLEN;
-            if (!bytes.empty() && bytes.size() < *len_data &&
-                !std::equal(bytes.begin(), bytes.begin()+*len_data,
-                    len_data+1)) { continue;}
+            auto len_data = *sout.CrossChainDataBegin();
+            if (!bytes.empty()) {
+                if (bytes.size() > len_data ||
+                    !std::equal(bytes.begin(), bytes.end(),
+                    sout.CrossChainDataBegin()+1)) {
+                    continue;
+                }
+            }
+            if (minimum > crosschaintx->vout[0].nValue) {
+                continue;
+            }
             const CScript sin = crosschaintx->vin[0].scriptSig;
             if (!sin.IsPushOnly()) { continue;}
             auto iter = sin.begin();

@@ -26,4 +26,5 @@ add_library(wallet
 	walletutil.cpp
 )
 
+target_compile_definitions(wallet PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
 target_link_libraries(wallet server script univalue Event::event ${BerkeleyDB_Cxx_LIBRARY})

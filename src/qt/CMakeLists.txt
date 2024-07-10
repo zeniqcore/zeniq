@@ -330,6 +330,7 @@ endif()
 
 # The executable
 add_executable(zeniq-qt WIN32 main.cpp)
+target_compile_definitions(zeniq-qt PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 	target_sources(zeniq-qt PRIVATE res/bitcoin-qt-res.rc)
 endif()

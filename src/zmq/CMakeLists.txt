@@ -9,6 +9,7 @@ add_library(zmq
 	zmqrpc.cpp
 	zmqutil.cpp
 )
+target_compile_definitions(zmq PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
 
 find_package(ZeroMQ 4.1.5 REQUIRED)
 target_link_libraries(zmq util ZeroMQ::zmq)

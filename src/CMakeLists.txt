@@ -17,7 +17,7 @@ option(BUILD_BITCOIN_SEEDER "Build zeniq-seeder" ON)
 option(BUILD_BITCOIN_CLI "Build zeniq-cli" ON)
 option(BUILD_BITCOIN_TX "Build zeniq-tx" ON)
 option(BUILD_BITCOIN_QT "Build zeniq-qt" ON)
-option(BUILD_LIBBITCOINCONSENSUS "Build the zeniqconsenus shared library" ON)
+option(BUILD_LIBBITCOINCONSENSUS "Build the zeniqconsenus shared library" OFF)
 option(ENABLE_BIP70 "Enable BIP70 (payment protocol) support in GUI" ON)
 option(ENABLE_HARDENING "Harden the executables" ON)
 option(ENABLE_REDUCE_EXPORTS "Reduce the amount of exported symbols" OFF)
@@ -347,6 +347,8 @@ add_library(util
 	"${BUILD_HEADER}"
 )
 
+target_compile_definitions(util PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
+
 target_compile_definitions(util PUBLIC HAVE_CONFIG_H HAVE_BUILD_INFO)
 target_include_directories(util
 	PUBLIC
@@ -359,9 +361,10 @@ if(ENABLE_GLIBC_BACK_COMPAT)
 	target_sources(util PRIVATE compat/glibc_compat.cpp)
 endif()
 
+set(Boost_USE_STATIC_LIBS ON)
+
 # Target specific configs
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-	set(Boost_USE_STATIC_LIBS ON)
 	set(Boost_USE_STATIC_RUNTIME ON)
 	set(Boost_THREADAPI win32)
 
@@ -396,7 +399,7 @@ endfunction(prepend)
 
 prepend(BOOST_LIBRARIES "Boost::" ${BOOST_PACKAGES_REQUIRED})
 
-find_package(Boost 1.58 REQUIRED ${BOOST_PACKAGES_REQUIRED})
+find_package(Boost 1.81 REQUIRED ${BOOST_PACKAGES_REQUIRED})
 target_link_libraries(util univalue crypto ${BOOST_LIBRARIES})
 
 # Make sure boost uses std::atomic (it doesn't before 1.63)
@@ -431,6 +434,7 @@ add_library(common
 	warnings.cpp
 )
 
+target_compile_definitions(common PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
 target_link_libraries(common util secp256k1)
 
 # script library
@@ -447,6 +451,7 @@ add_library(script
 	script/standard.cpp
 )
 
+target_compile_definitions(script PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
 target_link_libraries(script common)
 
 # libbitcoinconsensus
@@ -459,6 +464,7 @@ add_library(bitcoinconsensus
 	util/strencodings.cpp
 )
 
+target_compile_definitions(bitcoinconsensus PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
 target_link_libraries(bitcoinconsensus script)
 
 include(InstallationHelper)
@@ -539,6 +545,7 @@ add_library(server
 	validationinterface.cpp
 )
 
+target_compile_definitions(server PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
 target_include_directories(server PRIVATE leveldb/helpers/memenv)
 
 # This require libevent
@@ -613,6 +620,7 @@ include(BinaryTest)
 # zeniq-cli
 if(BUILD_BITCOIN_CLI)
 	add_executable(zeniq-cli bitcoin-cli.cpp)
+	target_compile_definitions(zeniq-cli PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
 	if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 		target_sources(zeniq-cli PRIVATE bitcoin-cli-res.rc)
 	endif()
@@ -628,6 +636,7 @@ endif()
 # zeniq-tx
 if(BUILD_BITCOIN_TX)
 	add_executable(zeniq-tx bitcoin-tx.cpp)
+	target_compile_definitions(zeniq-tx PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
 	if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 		target_sources(zeniq-tx PRIVATE bitcoin-tx-res.rc)
 	endif()
@@ -643,6 +652,7 @@ endif()
 # zeniqd
 if(BUILD_BITCOIN_DAEMON)
 	add_executable(zeniqd bitcoind.cpp)
+	target_compile_definitions(zeniqd PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
 	target_link_libraries(zeniqd server)
 	if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 		target_sources(zeniqd PRIVATE bitcoind-res.rc)

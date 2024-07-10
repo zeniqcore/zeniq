@@ -8,6 +8,8 @@ add_library(seeder bitcoin.cpp db.cpp dns.cpp)
 target_link_libraries(seeder common bitcoinconsensus)
 
 add_executable(zeniq-seeder main.cpp)
+target_compile_definitions(zeniq-seeder PUBLIC -DBOOST_FILESYSTEM_VERSION=3)
+
 target_link_libraries(zeniq-seeder common bitcoinconsensus seeder)
 
 include(BinaryTest)
