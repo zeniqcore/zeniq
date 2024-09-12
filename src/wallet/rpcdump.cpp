@@ -19,6 +19,7 @@
 #include <validation.h>
 #include <wallet/rpcwallet.h>
 #include <wallet/wallet.h>
+#include <wallet/keccak256.h>
 
 #include <boost/algorithm/string.hpp>
 
@@ -94,7 +95,26 @@ static void RescanWallet(CWallet &wallet, const WalletRescanReserver &reserver,
     }
 }
 
-UniValue importprivkey(const Config &, const JSONRPCRequest &request) {
+UniValue addrforkey(const Config &config, const CKey &key) {
+    CPubKey pubkey = key.GetPubKey();
+    CTxDestination dest = GetDestinationForKey(pubkey, OutputType::LEGACY);
+    std::string addrMain = EncodeDestination(dest, config);
+    pubkey.Decompress();
+    uint8_t hash[32];
+    // begin()+1 to drop leading 0x04
+    keccak256(&*(pubkey.begin()+1),pubkey.size()-1,hash);
+    std::string addrSmart = HexStr(hash+12, hash+32);
+
+    UniValue res;
+    UniValue::Array &resarr = res.setArray();
+    UniValue::Object &reso = UniValue().setObject();
+    reso.emplace_back("addrMain", addrMain);
+    reso.emplace_back("addrSmart", std::string("0x")+addrSmart);
+    resarr.emplace_back(reso);
+    return res;
+}
+
+UniValue importprivkey(const Config &config, const JSONRPCRequest &request) {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
     CWallet *const pwallet = wallet.get();
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -139,6 +159,7 @@ UniValue importprivkey(const Config &, const JSONRPCRequest &request) {
 
     WalletRescanReserver reserver(pwallet);
     bool fRescan = true;
+    CKey key;
     {
         auto locked_chain = pwallet->chain().lock();
         LOCK(pwallet->cs_wallet);
@@ -167,15 +188,20 @@ UniValue importprivkey(const Config &, const JSONRPCRequest &request) {
                                "rescan or wait.");
         }
 
-        CKey key = DecodeSecret(strSecret);
+        key = DecodeSecret(strSecret);
         if (!key.IsValid()) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
-                               "Invalid private key encoding");
+            size_t start_hex = 0;
+            if (strSecret.size() > 2 && *strSecret.begin() == '0' && *(strSecret.begin() + 1) == 'x') {
+                start_hex = 2;
+            }
+            auto data = ParseHex(strSecret.substr(start_hex));
+            key.Set(data.begin(),data.begin()+32, true);
         }
 
         CPubKey pubkey = key.GetPubKey();
         assert(key.VerifyPubKey(pubkey));
         CKeyID vchAddress = pubkey.GetID();
+
         {
             pwallet->MarkDirty();
             // We don't know which corresponding address will be used; label
@@ -186,7 +212,7 @@ UniValue importprivkey(const Config &, const JSONRPCRequest &request) {
 
             // Don't throw error in case a key is already there
             if (pwallet->HaveKey(vchAddress)) {
-                return UniValue();
+                return addrforkey(config, key);
             }
 
             pwallet->LearnAllRelatedScripts(pubkey);
@@ -200,12 +226,13 @@ UniValue importprivkey(const Config &, const JSONRPCRequest &request) {
                                    "Error adding key to wallet");
             }
         }
+
     }
     if (fRescan) {
         RescanWallet(*pwallet, reserver);
     }
 
-    return UniValue();
+    return addrforkey(config, key);
 }
 
 UniValue abortrescan(const Config &, const JSONRPCRequest &request) {

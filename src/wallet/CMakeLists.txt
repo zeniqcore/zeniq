@@ -19,6 +19,7 @@ add_library(wallet
 	fees.cpp
 	init.cpp
 	psbtwallet.cpp
+	keccak256.cpp
 	rpcdump.cpp
 	rpcwallet.cpp
 	wallet.cpp

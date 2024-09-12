@@ -1454,7 +1454,12 @@ static void ThreadMapPort() {
     struct IGDdatas data;
     int r;
 
+#if MINIUPNPC_API_VERSION >= 18
+    char wnaddr[64];
+    r = UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr), wnaddr, sizeof(wnaddr));
+#else
     r = UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr));
+#endif
     if (r == 1) {
         if (fDiscover) {
             char externalIPAddress[40];

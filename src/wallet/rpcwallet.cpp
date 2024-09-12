@@ -16,10 +16,12 @@
 #include <net.h>
 #include <outputtype.h>
 #include <policy/fees.h>
+#include <wallet/fees.h>
 #include <policy/policy.h>
 #include <rpc/mining.h>
 #include <rpc/rawtransaction.h>
 #include <rpc/server.h>
+#include <rpc/protocol.h>
 #include <rpc/util.h>
 #include <shutdown.h>
 #include <timedata.h>
@@ -32,6 +34,8 @@
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 #include <wallet/walletutil.h>
+#include <wallet/keccak256.h>
+#include <node/transaction.h>
 
 #include <univalue.h>
 
@@ -39,6 +43,8 @@
 
 #include <functional>
 #include <optional>
+
+#include <iomanip>
 
 static const std::string WALLET_ENDPOINT_BASE = "/wallet/";
 
@@ -527,6 +533,240 @@ static UniValue sendtoaddress(const Config &config,
                   coinControl, std::move(mapValue), coinsel);
     return tx->GetId().GetHex();
 }
+
+class HexOutputStream {
+public:
+    std::ostringstream oss;
+    void write(const std::string str) {
+        for (char c : str) {
+            oss << std::hex << static_cast<int>(c);
+        }
+    }
+    void write64(uint64_t ui64) {
+        for (int i = 7; i >= 0; --i) {
+            oss << std::setw(2) << std::setfill('0') <<
+                static_cast<int>(static_cast<uint8_t>((ui64 >> (56 - 8 * i)) & 0xFF));
+        }
+    }
+    std::string str() { return oss.str(); }
+};
+
+CMutableTransaction constructCrossTx(const Config &config, std::string txidHex, uint32_t n, uint64_t amountCross, uint32_t nLockTime) {
+    UniValue inputs;
+    UniValue::Array &arr = inputs.setArray();
+    UniValue::Object &obj = UniValue().setObject();
+    obj.emplace_back("txid", txidHex);
+    obj.emplace_back("vout", n);
+    obj.emplace_back("sequence", 4294967295);
+    arr.emplace_back(obj);
+    HexOutputStream hoss;
+    hoss.write("crss");
+    hoss.write64(amountCross);
+    hoss.write("1e10wei");
+    UniValue outputs;
+    UniValue::Array &os = outputs.setArray();
+    UniValue::Object &o = UniValue().setObject();
+    o.emplace_back("data",hoss.str());
+    os.emplace_back(o);
+    return ConstructTransaction(config.GetChainParams(), inputs, outputs, nLockTime);
+}
+
+
+JSONRPCRequest requestObj(std::string method, std::string str) {
+    JSONRPCRequest result{1,method, UniValue(),false,"",""};
+    UniValue::Array &p = result.params.setArray();
+    p.reserve(1);
+    p.emplace_back(str);
+    return result;
+}
+
+static UniValue sendcrosschain(const Config &config,
+                              const JSONRPCRequest &request) {
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet *const pwallet = wallet.get();
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return UniValue();
+    }
+
+    if (request.fHelp || request.params.size() < 1 ||
+        request.params.size() > 7) {
+        throw std::runtime_error(
+            RPCHelpMan{"sendcrosschain",
+                "\nSend an amount to the smartchain in two Tx:\n"
+                "- first make a coinTx to the given address (can be reused)\n"
+                "- then a crossTx burning coinTx in mainchain\n"
+                "By config, smartchain will ignore amounts below a minimum, which effectively burns such amounts.\n"+
+                    HelpRequiringPassphrase(pwallet) + "\n",
+                {
+                    {"address", RPCArg::Type::STR, /* opt */ false, /* default_val */ "", "The Zeniq address for coinTx.\n"
+                    "The private key for the address must be in the wallet,\n"
+                    "is used to derive the smart address,\n"
+                    "is also needed for the smartchain:\n"
+                    "either format change to mainchain + importprivkey or\n"
+                    "dumpprivkey + format change to smartchain."},
+                    {"amount", RPCArg::Type::AMOUNT, /* opt */ false, /* default_val */ "", "The amount in " + CURRENCY_UNIT + " to send, eg >= 1000"},
+                    {"comment", RPCArg::Type::STR, /* opt */ true, /* default_val */ "", "A comment used to store what the transaction is for.\n"
+            "                             This is not part of the transaction, just kept in your wallet. For coinTx."},
+                    {"comment_to", RPCArg::Type::STR, /* opt */ true, /* default_val */ "", "A comment to store the name of the person or organization\n"
+            "                             to which you're sending the transaction. This is not part of the\n"
+            "                             transaction, just kept in your wallet. For coinTx."},
+                    {"subtractfeefromamount", RPCArg::Type::BOOL, /* opt */ true, /* default_val */ "false", "The fee will be deducted from the amount being sent.\n"
+            "                             The recipient will receive less bitcoins than you enter in the amount field. For coinTx."},
+                    {"coinsel", RPCArg::Type::NUM, /* opt */ true, /* default_val */ "0",
+                        "Which coin selection algorithm to use. A value of 1 will use a faster algorithm "
+                        "suitable for stress tests or use with large wallets. "
+                        "This algorithm is likely to produce larger transactions on average."
+                        "0 is a slower algorithm using BNB and a knapsack solver, but"
+                        "which can produce transactions with slightly better privacy and "
+                        "smaller transaction sizes. Values other than 0 or 1 are reserved"
+                        "for future algorithms. For coinTx."},
+                    {"include_unsafe", RPCArg::Type::BOOL, /* opt */ true, /* default_val */ RPCArg::Default(DEFAULT_INCLUDE_UNSAFE_INPUTS),
+                     "Include inputs that are not safe to spend (unconfirmed transactions from outside keys).\n"
+                     "Warning: the resulting transaction may become invalid if one of the unsafe inputs "
+                     "disappears.\n"
+                     "If that happens, you will need to fund the transaction with different inputs and "
+                     "republish it. For coinTx."},
+                }}
+                .ToString() +
+            "\nResult:\n"
+            "\"coinTx\"                   (string) The transaction id to create a coin with the wanted amount.\n"
+            "\"crossTx\"                  (string) The transaction id to send the coin crosschain.\n"
+            "\nExamples:\n" +
+            HelpExampleCli("sendcrosschain", "1000") +
+            HelpExampleCli("sendcrosschain", "1000 \"mylabel\" \"donation\" \"seans outpost\"") +
+            HelpExampleCli("sendcrosschain", "1000 \"\" \"\" \"\" true") +
+            HelpExampleRpc("sendcrosschain", "1000,\"mylabel\",\"donation\",\"seans outpost\""));
+    }
+
+    std::string addrSmart = "";
+    {
+        auto locked_chain = pwallet->chain().lock();
+        LOCK(pwallet->cs_wallet);
+        EnsureWalletIsUnlocked(pwallet);
+
+        std::string addrMain = request.params[0].get_str();
+        CTxDestination dest =
+            DecodeDestination(addrMain, config.GetChainParams());
+        if (!IsValidDestination(dest)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                            "Invalid Zeniq address");
+        }
+        auto keyid = GetKeyForDestination(*pwallet, dest);
+        if (keyid.IsNull()) {
+            throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
+        }
+        CKey vchSecret;
+        if (!pwallet->GetKey(keyid, vchSecret)) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " +
+                                                    addrMain + " is not known");
+        }
+
+        auto pubKey = vchSecret.GetPubKey();
+        pubKey.Decompress();
+        uint8_t hash[32];
+        // begin()+1 to drop leading 0x04
+        keccak256(&*(pubKey.begin()+1),pubKey.size()-1,hash);
+        addrSmart = HexStr(hash+12, hash+32);
+
+        /*
+        std::string keyEncoded =  EncodeSecret(vchSecret);
+        std::string pubHex = HexStr(pubKey.begin()+1, pubKey.end());
+        std::string privHex = HexStr(vchSecret.begin(), vchSecret.end());
+        auto strError = strprintf(
+                "keyEncoded=%s\n""privHex=%s\n""pubHex=%s\n""addrMain=%s\n""addrSmart=%s\n",
+                      keyEncoded, privHex, pubHex, addrMain, addrSmart);
+        throw JSONRPCError(RPC_TYPE_ERROR, strError);
+        */
+
+    }
+
+    pwallet->BlockUntilSyncedToCurrentChain();
+
+    CCoinControl coinControl;
+    auto tmpTx = constructCrossTx(config, TxId().GetHex(), 0, 1000, 0);
+    CFeeRate feerate = GetMinimumFeeRate(*wallet , coinControl, g_mempool);
+    int scriptSigSize = 139;
+    size_t nBytes = GetSerializeSize(tmpTx, PROTOCOL_VERSION) + scriptSigSize;
+    Amount crossFee = feerate.GetFee(nBytes);
+
+    Amount nAmount = AmountFromValue(request.params[1]);
+    if (nAmount <= Amount::zero()) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+    }
+    uint64_t amountCross = static_cast<uint64_t>(nAmount/Amount::satoshi());
+    nAmount += crossFee;
+
+    auto locked_chain = pwallet->chain().lock();
+
+    // copied_from_sendtoaddress
+    mapValue_t mapValue;
+    if (!request.params[2].isNull() && !request.params[2].get_str().empty()) {
+        mapValue["comment"] = request.params[2].get_str();
+    }
+    if (!request.params[3].isNull() && !request.params[3].get_str().empty()) {
+        mapValue["to"] = request.params[3].get_str();
+    }
+    bool fSubtractFeeFromAmount = false;
+    if (!request.params[4].isNull()) {
+        fSubtractFeeFromAmount = request.params[4].get_bool();
+    }
+    CoinSelectionHint coinsel(CoinSelectionHint::Default);
+    if (!request.params[5].isNull()) {
+        int c = (request.params[5].get_int());
+        if (!IsValidCoinSelectionHint(c)) {
+            throw JSONRPCError(RPC_TYPE_ERROR, "Unsupported coin selection algorithm");
+        }
+        coinsel = static_cast<CoinSelectionHint>(c);
+    }
+    if (!request.params[6].isNull()) {
+        coinControl.m_include_unsafe_inputs = request.params[6].get_bool();
+    }
+    std::string addrMain = request.params[0].get_str();
+    CTxDestination dest = DecodeDestination(addrMain, config.GetChainParams());
+    CTransactionRef coinTx =
+        SendMoney(*locked_chain, pwallet, dest, nAmount, fSubtractFeeFromAmount,
+                  coinControl, std::move(mapValue), coinsel);
+    // copied_from_sendtoaddress
+
+    auto txidHex = coinTx->GetId().GetHex();
+    uint32_t n = 0;
+    auto it = std::find_if(coinTx->vout.begin(), coinTx->vout.end(),
+            [&](CTxOut o){ return o.nValue == nAmount; });
+    if (it != coinTx->vout.end()) {
+        n = it - coinTx->vout.begin();
+    }
+    auto rawCrossTx = constructCrossTx(config, txidHex, n, amountCross, locked_chain->getHeight().value());
+    CTransaction rawTx(rawCrossTx);
+    auto rawHex = EncodeHexTx(rawTx, RPCSerializationFlags());
+    JSONRPCRequest signRequest = requestObj("signrawtransactionwithwallet", rawHex);
+    auto sign = signrawtransactionwithwallet(config, signRequest);
+    std::string signedHex = sign["hex"].get_str();
+
+    CMutableTransaction crossTx;
+    if (!DecodeHexTx(crossTx, signedHex)) {
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed for signed crossTX");
+    }
+    CReserveKey reservekey(pwallet);
+    CValidationState state;
+    auto crossTxRef = MakeTransactionRef(std::move(crossTx));
+    if (!pwallet->CommitTransaction(crossTxRef, mapValue_t(), {} /* orderForm */, reservekey, g_connman.get(), state)) {
+        auto strError =
+            strprintf("Error: The transaction was rejected! Reason given: %s",
+                      FormatStateMessage(state));
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+
+    UniValue res;
+    UniValue::Array &resarr = res.setArray();
+    UniValue::Object &reso = UniValue().setObject();
+    reso.emplace_back("coinTx", coinTx->GetId().GetHex());
+    reso.emplace_back("crossTx", crossTxRef->GetId().GetHex());
+    reso.emplace_back("addrSmart", std::string("0x")+addrSmart);
+    resarr.emplace_back(reso);
+    return res;
+}
+
 
 static UniValue listaddressgroupings(const Config &config,
                                      const JSONRPCRequest &request) {
@@ -4477,6 +4717,7 @@ static const ContextFreeRPCCommand commands[] = {
     { "wallet",             "rescanblockchain",             rescanblockchain,             {"start_height", "stop_height"} },
     { "wallet",             "sendmany",                     sendmany,                     {"dummy","amounts","minconf","comment","subtractfeefrom", "coinsel", "include_unsafe"} },
     { "wallet",             "sendtoaddress",                sendtoaddress,                {"address","amount","comment","comment_to","subtractfeefromamount","coinsel", "include_unsafe"} },
+    { "wallet",             "sendcrosschain",               sendcrosschain,               {"amount","label","comment","comment_to","subtractfeefromamount","coinsel", "include_unsafe"} },
     { "wallet",             "sethdseed",                    sethdseed,                    {"newkeypool","seed"} },
     { "wallet",             "setlabel",                     setlabel,                     {"address","label"} },
     { "wallet",             "settxfee",                     settxfee,                     {"amount"} },

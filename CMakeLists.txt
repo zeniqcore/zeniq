@@ -2,16 +2,14 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_USER_MAKE_RULES_OVERRIDE
 	"${CMAKE_SOURCE_DIR}/cmake/modules/OverrideInitFlags.cmake"
 )
 
 project(zeniq-node
-	VERSION 24.0.7
-	DESCRIPTION "Zeniq is a full node implementation of the Bitcoin protocol."
-	HOMEPAGE_URL "https://zeniq.com"
+	VERSION 24.0.8
 )
 
 # Package information
@@ -40,6 +38,9 @@ set(BITCOIN_QT_OSX_BUNDLE_NAME "Zeniq-Qt")
 
 # Find the python interpreter. This is required for several targets.
 find_package(Python 3.6 COMPONENTS Interpreter REQUIRED)
+# CMake < 3.12
+# find_package(PythonInterp 3.6 REQUIRED)
+# find_package(PythonLibs 3.6 REQUIRED)
 
 # Add the magic targets `check-*`
 add_custom_target(check-all)
