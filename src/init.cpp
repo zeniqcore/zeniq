@@ -2724,6 +2724,18 @@ bool AppInitMain(Config &config, RPCServer &rpcServer,
         return false;
     }
 
+    const BlockHash invalidate_hash = BlockHash::fromHex("000000008dcccf912dbc3fa3f9c9aff5d5fd6f96213e28aaf0199ae06f0f3097");
+    CBlockIndex *pindex = LookupBlockIndex(invalidate_hash);
+
+    if (pindex && ::ChainActive().Contains(pindex)) {
+        CValidationState state;
+        InvalidateBlock(config, state, pindex);
+
+        if (state.IsValid()) {
+            ActivateBestChain(config, state);
+        }
+    }
+
     // Step 12: start node
 
     //// Ensure g_best_block (used by mining RPC) is initialized

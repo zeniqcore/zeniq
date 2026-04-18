@@ -1546,6 +1546,11 @@ DisconnectResult ApplyBlockUndo(const CBlockUndo &blockUndo,
     for (size_t i = 1; i < block.vtx.size(); i++) {
         const CTransaction &tx = *(block.vtx[i]);
         const CTxUndo &txundo = blockUndo.vtxundo[i - 1];
+
+        if (tx.IsCoinBase()) {
+            continue;
+        }
+
         if (txundo.vprevout.size() != tx.vin.size()) {
             error("DisconnectBlock(): transaction and undo data inconsistent");
             return DISCONNECT_FAILED;
@@ -1946,7 +1951,9 @@ bool CChainState::ConnectBlock(const CBlock &block, CValidationState &state,
     }
 
     size_t txIndex = 0;
+    size_t i = -1;
     for (const auto &ptx : block.vtx) {
+        i++;
         const CTransaction &tx = *ptx;
         const bool isCoinBase = tx.IsCoinBase();
         nInputs += tx.vin.size();
@@ -1967,6 +1974,13 @@ bool CChainState::ConnectBlock(const CBlock &block, CValidationState &state,
         }
 
         // The following checks do not apply to the coinbase.
+        if (!i != isCoinBase) {
+            return state.DoS(
+                100,
+                error("%s: coinbase transaction is out of order.",
+                      __func__),
+                REJECT_INVALID, "bad-txns-coinbase-outoforder");
+        }
         if (isCoinBase) {
             continue;
         }
@@ -3994,8 +4008,27 @@ static bool ContextualCheckBlock(const CBlock &block, CValidationState &state,
     // - canonical ordering
     // - ensure they are finalized
     const CTransaction *prevTx = nullptr;
+    int i = -1;
     for (const auto &ptx : block.vtx) {
         const CTransaction &tx = *ptx;
+
+        if (nHeight > 324295) {
+            i++;
+            const bool is_cb = tx.IsCoinBase();
+            if (!i && !is_cb) {
+                return state.DoS(20, false, REJECT_INVALID, "tx-invalid-coinbase",
+                                 false,
+                                 strprintf("First transaction is not coinbase %s",
+                                           tx.GetId().ToString()));
+            }
+            if (i && is_cb) {
+                return state.DoS(20, false, REJECT_INVALID, "tx-invalid-coinbase",
+                                 false,
+                                 strprintf("Only first transaction can be coinbase %s",
+                                           tx.GetId().ToString()));
+            }
+        }
+
         if (fIsMagneticAnomalyEnabled) {
             if (prevTx && (tx.GetId() <= prevTx->GetId())) {
                 if (tx.GetId() == prevTx->GetId()) {
