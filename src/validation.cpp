@@ -1974,7 +1974,7 @@ bool CChainState::ConnectBlock(const CBlock &block, CValidationState &state,
         }
 
         // The following checks do not apply to the coinbase.
-        if (!i != isCoinBase) {
+        if (pindex->nHeight > 324295 && !i != isCoinBase) {
             return state.DoS(
                 100,
                 error("%s: coinbase transaction is out of order.",
