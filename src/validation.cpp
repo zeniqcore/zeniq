@@ -2052,7 +2052,7 @@ bool CChainState::ConnectBlock(const CBlock &block, CValidationState &state,
              nInputs <= 1 ? 0 : MILLI * (nTime3 - nTime2) / (nInputs - 1),
              nTimeConnect * MICRO, nTimeConnect * MILLI / nBlocksTotal);
 
-    Amount blockReward = 
+    Amount blockReward =
         (consensusParams.IsZenitNet() && g_Minter) ?
             g_Minter->MinerReward(nFees, pindex->nHeight, *block.vtx[0]) :
             nFees + GetBlockSubsidy(pindex->nHeight, consensusParams);
@@ -3699,6 +3699,12 @@ static bool FindUndoPos(CValidationState &state, int nFile, FlatFilePos &pos,
 static bool CheckBlockHeader(const CBlockHeader &block, CValidationState &state,
                              const Consensus::Params &params,
                              BlockValidationOptions validationOptions) {
+    static BlockHash target_hash = BlockHash::fromHex("000000008dcccf912dbc3fa3f9c9aff5d5fd6f96213e28aaf0199ae06f0f3097");
+    if (block.GetHash() == target_hash) {
+        return state.DoS(50, false, REJECT_INVALID, "high-hash", false,
+                         "invalid block header");
+    }
+
     // Check proof of work matches claimed amount
     if (validationOptions.shouldValidatePoW() &&
         !CheckProofOfWork(block.GetHash(), block.nBits, params)) {
@@ -4782,6 +4788,13 @@ bool CChainState::LoadBlockIndex(const Config &config,
         pindex->nTimeMax =
             (pindex->pprev ? std::max(pindex->pprev->nTimeMax, pindex->nTime)
                            : pindex->nTime);
+
+        // set hash invalid
+        static BlockHash target_hash = BlockHash::fromHex("000000008dcccf912dbc3fa3f9c9aff5d5fd6f96213e28aaf0199ae06f0f3097");
+        if (*pindex->phashBlock == target_hash) {
+            pindex->nStatus = pindex->nStatus.withFailed(true);
+        }
+
         // We can link the chain of blocks for which we've received transactions
         // at some point. Pruned nodes may have deleted the block.
         if (pindex->nTx > 0) {

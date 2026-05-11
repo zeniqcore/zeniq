@@ -9,7 +9,7 @@ set(CMAKE_USER_MAKE_RULES_OVERRIDE
 )
 
 project(zeniq-node
-	VERSION 24.0.10
+	VERSION 24.0.11
 )
 
 # Package information
